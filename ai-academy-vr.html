@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>AI Tutor VR - Integrado</title>
+    <script src="https://aframe.io/releases/1.4.0/aframe.min.js"></script>
+    <script>
+      const API_KEY = "AIzaSyCwTxeUHi_usF8GHBBRS6XmqPC7efeUzW8"; // <--- COLOQUE SUA CHAVE AQUI
+
+      // 1. Função para falar com a API do Gemini
+      async function chamarIA(pergunta) {
+        const URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${API_KEY}`;
+        
+        const promptSystem = "Você é um professor de VR. O aluno quer aprender sobre: " + pergunta + 
+                             ". Explique de forma curta, didática e termine com um desafio de matemática simples.";
+
+        try {
+          const response = await fetch(URL, {
+            method: 'POST',
+            body: JSON.stringify({ contents: [{ parts: [{ text: promptSystem }] }] })
+          });
+          const data = await response.json();
+          return data.candidates[0].content.parts[0].text;
+        } catch (e) {
+          return "Erro ao conectar com meu cérebro. Verifique a API Key!";
+        }
+      }
+
+      // 2. Função de Voz
+      function falar(texto) {
+        window.speechSynthesis.cancel();
+        const msg = new SpeechSynthesisUtterance(texto);
+        msg.lang = 'pt-BR';
+        window.speechSynthesis.speak(msg);
+      }
+
+      // 3. Componente para iniciar a lição
+      AFRAME.registerComponent('iniciar-licao', {
+        init: function () {
+          this.el.addEventListener('click', async () => {
+            const quadro = document.querySelector("#texto-quadro");
+            quadro.setAttribute('value', "Pensando...");
+            
+            // Pergunta para a IA
+            const respostaIA = await chamarIA("multiplicação de 10 por 9");
+            
+            // Mostra no quadro e fala
+            quadro.setAttribute('value', respostaIA);
+            falar(respostaIA);
+            
+            // Cria os blocos visuais
+            gerarBlocos(9);
+          });
+        }
+      });
+
+      function gerarBlocos(qtd) {
+        const container = document.querySelector("#container-objetos");
+        container.innerHTML = ""; 
+        for (let i = 0; i < qtd; i++) {
+          let b = document.createElement("a-box");
+          b.setAttribute("position", `${(i * 0.6) - 2.5} 0.5 -2.5`);
+          b.setAttribute("color", "#3498db");
+          b.setAttribute("animation", "property: scale; from: 0 0 0; to: 1 1 1; dur: 800; delay: "+(i*100));
+          container.appendChild(b);
+        }
+      }
+    </script>
+  </head>
+  <body>
+    <a-scene>
+      <a-entity camera look-controls position="0 1.6 0"><a-cursor></a-cursor></a-entity>
+      <a-sky color="#1a1a1a"></a-sky>
+
+      <a-box position="0 2.8 -5" depth="0.1" height="3" width="7" color="#2c3e50">
+        <a-text id="texto-quadro" value="Clique no botao para chamar o Professor IA" 
+                align="center" position="0 0 0.1" width="6" wrap-count="40"></a-text>
+      </a-box>
+
+      <a-entity id="container-objetos"></a-entity>
+
+      <a-sphere iniciar-licao position="0 0.5 -3" radius="0.4" color="#f1c40f"
+                animation="property: position; to: 0 0.6 -3; dir: alternate; loop: true; dur: 2000">
+        <a-text value="ENSINAR" align="center" position="0 0.6 0" width="4"></a-text>
+      </a-sphere>
+
+      <a-plane rotation="-90 0 0" width="20" height="20" color="#333"></a-plane>
+    </a-scene>
+  </body>
+</html>
+
