@@ -1,90 +1,117 @@
 <!DOCTYPE html>
-<html>
-  <head>
-    <title>AI Tutor VR - Integrado</title>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <title>AI Academy VR - Full Script</title>
     <script src="https://aframe.io/releases/1.4.0/aframe.min.js"></script>
+    
     <script>
-      const API_KEY = "AIzaSyCwTxeUHi_usF8GHBBRS6XmqPC7efeUzW8"; // <--- COLOQUE SUA CHAVE AQUI
+        // CONFIGURAÇÃO DA API
+        const API_KEY = "AIzaSyCwTxeUHi_usF8GHBBRS6XmqPC7efeUzW8"; 
 
-      // 1. Função para falar com a API do Gemini
-      async function chamarIA(pergunta) {
-        const URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${API_KEY}`;
-        
-        const promptSystem = "Você é um professor de VR. O aluno quer aprender sobre: " + pergunta + 
-                             ". Explique de forma curta, didática e termine com um desafio de matemática simples.";
-
-        try {
-          const response = await fetch(URL, {
-            method: 'POST',
-            body: JSON.stringify({ contents: [{ parts: [{ text: promptSystem }] }] })
-          });
-          const data = await response.json();
-          return data.candidates[0].content.parts[0].text;
-        } catch (e) {
-          return "Erro ao conectar com meu cérebro. Verifique a API Key!";
-        }
-      }
-
-      // 2. Função de Voz
-      function falar(texto) {
-        window.speechSynthesis.cancel();
-        const msg = new SpeechSynthesisUtterance(texto);
-        msg.lang = 'pt-BR';
-        window.speechSynthesis.speak(msg);
-      }
-
-      // 3. Componente para iniciar a lição
-      AFRAME.registerComponent('iniciar-licao', {
-        init: function () {
-          this.el.addEventListener('click', async () => {
-            const quadro = document.querySelector("#texto-quadro");
-            quadro.setAttribute('value', "Pensando...");
+        // 1. FUNÇÃO PARA FALAR COM O GEMINI
+        async function buscarRespostaIA(materia) {
+            const URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${API_KEY}`;
             
-            // Pergunta para a IA
-            const respostaIA = await chamarIA("multiplicação de 10 por 9");
-            
-            // Mostra no quadro e fala
-            quadro.setAttribute('value', respostaIA);
-            falar(respostaIA);
-            
-            // Cria os blocos visuais
-            gerarBlocos(9);
-          });
-        }
-      });
+            const prompt = {
+                contents: [{
+                    parts: [{
+                        text: `Você é um professor de VR amigável. Ensine brevemente sobre ${materia}. 
+                               Foque em explicar 10 x 9 de forma didática. 
+                               Não dê a resposta de imediato, ensine o processo.`
+                    }]
+                }]
+            };
 
-      function gerarBlocos(qtd) {
-        const container = document.querySelector("#container-objetos");
-        container.innerHTML = ""; 
-        for (let i = 0; i < qtd; i++) {
-          let b = document.createElement("a-box");
-          b.setAttribute("position", `${(i * 0.6) - 2.5} 0.5 -2.5`);
-          b.setAttribute("color", "#3498db");
-          b.setAttribute("animation", "property: scale; from: 0 0 0; to: 1 1 1; dur: 800; delay: "+(i*100));
-          container.appendChild(b);
+            try {
+                const response = await fetch(URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(prompt)
+                });
+
+                const data = await response.json();
+                
+                if (data.error) {
+                    console.error("Erro na API:", data.error.message);
+                    return "Erro na API: " + data.error.message;
+                }
+
+                return data.candidates[0].content.parts[0].text;
+            } catch (err) {
+                console.error("Erro de conexão:", err);
+                return "Erro de conexão. Verifique o console.";
+            }
         }
-      }
+
+        // 2. FUNÇÃO DE VOZ (TEXT-TO-SPEECH)
+        function falar(texto) {
+            window.speechSynthesis.cancel();
+            const msg = new SpeechSynthesisUtterance(texto);
+            msg.lang = 'pt-BR';
+            msg.rate = 1.1;
+            window.speechSynthesis.speak(msg);
+        }
+
+        // 3. COMPONENTE DE INTERAÇÃO DO VR
+        AFRAME.registerComponent('professor-logic', {
+            init: function () {
+                const el = this.el;
+                const quadro = document.querySelector("#texto-quadro");
+                const container = document.querySelector("#objetos-container");
+
+                el.addEventListener('click', async () => {
+                    // Feedback visual inicial
+                    quadro.setAttribute('value', "Chamando o professor... Aguarde.");
+                    falar("Deixe-me pensar um pouco sobre isso.");
+
+                    // Busca resposta na IA
+                    const resposta = await buscarRespostaIA("Matematica (10 vezes 9)");
+                    
+                    // Atualiza o quadro e fala
+                    quadro.setAttribute('value', resposta);
+                    falar(resposta);
+
+                    // Gera os blocos 3D (Representando 9 grupos de 10)
+                    container.innerHTML = ""; // Limpa a sala antes
+                    for (let i = 0; i < 9; i++) {
+                        let bloco = document.createElement("a-box");
+                        bloco.setAttribute("position", `${(i * 0.7) - 2.8} 0.5 -3`);
+                        bloco.setAttribute("color", "#3498db");
+                        bloco.setAttribute("scale", "0.5 1.5 0.5");
+                        bloco.setAttribute("animation", "property: position; from: "+((i*0.7)-2.8)+" -2 -3; to: "+((i*0.7)-2.8)+" 0.5 -3; dur: 1000; delay: " + (i * 150));
+                        container.appendChild(bloco);
+                    }
+                });
+            }
+        });
     </script>
-  </head>
-  <body>
+</head>
+<body>
     <a-scene>
-      <a-entity camera look-controls position="0 1.6 0"><a-cursor></a-cursor></a-entity>
-      <a-sky color="#1a1a1a"></a-sky>
+        <a-entity camera look-controls position="0 1.6 0">
+            <a-cursor color="yellow" fuse="true" fuse-timeout="1500"></a-cursor>
+        </a-entity>
 
-      <a-box position="0 2.8 -5" depth="0.1" height="3" width="7" color="#2c3e50">
-        <a-text id="texto-quadro" value="Clique no botao para chamar o Professor IA" 
-                align="center" position="0 0 0.1" width="6" wrap-count="40"></a-text>
-      </a-box>
+        <a-sky color="#0f0f1f"></a-sky>
+        <a-light type="ambient" color="#fff" intensity="0.5"></a-light>
+        <a-light type="directional" position="1 1 1" intensity="0.8"></a-light>
 
-      <a-entity id="container-objetos"></a-entity>
+        <a-box position="0 3 -5" depth="0.1" height="3" width="8" color="#1a2530">
+            <a-text id="texto-quadro" 
+                    value="BEM-VINDO A SALA DE IA.\n\nOlhe para a esfera dourada para começar a aula." 
+                    align="center" position="0 0 0.1" width="7" wrap-count="45"></a-text>
+        </a-box>
 
-      <a-sphere iniciar-licao position="0 0.5 -3" radius="0.4" color="#f1c40f"
-                animation="property: position; to: 0 0.6 -3; dir: alternate; loop: true; dur: 2000">
-        <a-text value="ENSINAR" align="center" position="0 0.6 0" width="4"></a-text>
-      </a-sphere>
+        <a-sphere professor-logic position="0 0.5 -3" radius="0.4" color="#f1c40f"
+                  animation="property: scale; to: 1.2 1.2 1.2; dir: alternate; loop: true; dur: 1000">
+            <a-text value="CLIQUE AQUI" align="center" position="0 0.8 0" width="5"></a-text>
+        </a-sphere>
 
-      <a-plane rotation="-90 0 0" width="20" height="20" color="#333"></a-plane>
+        <a-entity id="objetos-container"></a-entity>
+
+        <a-grid></a-grid>
+        <a-plane position="0 0 0" rotation="-90 0 0" width="50" height="50" color="#222"></a-plane>
     </a-scene>
-  </body>
+</body>
 </html>
-
